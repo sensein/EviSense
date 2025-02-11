@@ -73,3 +73,6 @@ Thumbs.db
 *.log
 .env.local
 .env.*.local
+config.yml
+!example.config.yml
+!template.config.yml
