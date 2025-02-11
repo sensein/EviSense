@@ -1,0 +1,16 @@
+llm:
+  ollama:
+    base_url: "http://localhost:11434"
+    models:
+      - "deepseek-r1:14b"
+      - "qwen2.5-coder:14b"
+  
+  openrouter:
+    api_key: "your-openrouter-key"
+    base_url: "https://openrouter.ai/api/v1"
+    model: "gpt-4"
+  
+  openai:
+    api_key: "your-openai-key"
+    base_url: "https://api.openai.com/v1"
+    model: "gpt-4"
