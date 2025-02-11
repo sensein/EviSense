@@ -25,6 +25,8 @@ packages = [{include = "EviSense", from = "src"}]
 [tool.poetry.dependencies]
 python = "^3.10"
 click = "^8.1.7"
+ollama = "^0.4.7"
+openai = "^1.61.1"
 
 [tool.poetry.group.dev]
 optional = true
