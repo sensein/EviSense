@@ -28,6 +28,7 @@ click = "^8.1.7"
 ollama = "^0.4.7"
 openai = "^1.61.1"
 pyyaml = "^6.0.2"
+grobidarticleextractor = "^0.7.0"
 
 [tool.poetry.group.dev]
 optional = true
