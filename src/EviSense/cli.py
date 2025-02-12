@@ -1,6 +1,7 @@
 """This module defines CLI commands for the PipePal application."""
 
 import click
+import asyncio
 from .app import process_input_extract_rationale
 
 @click.group()
@@ -27,13 +28,21 @@ def cli(ctx):
         "The source—whether a file (text or PDF), a folder, or a text string—where evidence or rationale for the given term is searched."
     )
 )
-def extract_evidence(config, source):
-    result = process_input_extract_rationale(config=config, source=source)
-    click.echo(result)
 
+@click.option(
+    '--terms',
+    required=True,
+    type=str,
+    help=(
+        "The terms for which support or rationale should be sought."
+    )
+)
+def extract_evidence(config, source, terms):
     try:
-        # compare_items(source, destination, type)    to be implemented.
-        click.echo(f"Processing {source} with following config details/file: {config}.")
+        # Run the async function using asyncio.run()
+        result = asyncio.run(process_input_extract_rationale(config=config, source=source, terms=terms))
+        click.echo(result)
+                
     except Exception as e:
         click.echo(f"Error: {str(e)}", err=True)
         raise click.Abort()
