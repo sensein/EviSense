@@ -16,7 +16,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-async def process_input_extract_rationale(config: Union[str, Path, Dict], source: Union[str, Path], terms:Union[str, List[str]]) -> dict:
+async def process_input_extract_rationale(config: Union[str, Path, Dict], source: Union[str, Path], terms: Union[str, List[str]]) -> dict:
     """
     Extracts rationale or evidence for a given term based on the provided configuration.
 
@@ -37,54 +37,89 @@ async def process_input_extract_rationale(config: Union[str, Path, Dict], source
         FileNotFoundError
         ValueError
 
-
     Example:
         >>> config_path = "config.yml"
         >>> source_directory = "documents/"
         >>> result = process_input_extract_rationale(config_path, source_path)
         >>> print(result)
     """
+    try:
+        # Load and validate config
+        try:
+            config_data = load_config(config)
+            if not isinstance(config_data, dict):
+                raise ValueError(f"Invalid configuration format: {type(config_data)}")
+            if "llm" not in config_data:
+                raise ValueError("Configuration must contain 'llm' section")
+        except Exception as e:
+            logger.error(f"Configuration error: {str(e)}")
+            return {
+                "status": "Error",
+                "error": f"Configuration error: {str(e)}"
+            }
 
-    config_data = load_config(config)
+        # Handle string source
+        if isinstance(source, str) and not Path(source).exists():
+            logger.info("Processing string source")
+            return process_string_source(source, config_data)
 
-    if isinstance(source, str):
-        if not (Path(source).exists()):
-            logger.info(f"Source is a string")
-            return f"Source is string with config file {config_data}"
+        # Convert to Path and validate
+        source_path = Path(source) if isinstance(source, str) else source
+        if not source_path.exists():
+            error_msg = f"Source path does not exist: {source}"
+            logger.error(error_msg)
+            return {
+                "status": "Error",
+                "error": error_msg
+            }
 
-    # Convert to Path objects if they're strings
-    source_path = Path(source) if isinstance(source, str) else source
-    if not source_path.exists():
-        logger.error(f"Source path does not exist: {source}")
-        raise FileNotFoundError(f"Source path does not exist: {source}")
+        # Process single file
+        if source_path.is_file():
+            logger.info(f"Processing single file: {source_path}")
+            return await process_file(
+                file_path=source_path,
+                config_data=config_data,
+                terms=terms
+            )
 
-    if source_path.is_file():
-        logger.info(f"Process single source file: {source_path}.")
-        result = await process_file(file_path=source_path, config_data=config, terms=terms)
-        if result["status"] == "Error":
-            logger.error(f"Error processing file: {result['error']}")
-            return result
-        
-        logger.info(f"Successfully processed file: {result['file']}")
-        return result
+        # Process directory
+        elif source_path.is_dir():
+            logger.info(f"Processing directory: {source_path}")
+            results = {}
+            valid_extensions = {".txt", ".pdf"}
+            
+            for file_path in source_path.glob("*"):
+                if file_path.is_file() and file_path.suffix.lower() in valid_extensions:
+                    logger.info(f"Processing file: {file_path}")
+                    results[file_path.name] = await process_file(
+                        file_path=file_path,
+                        config_data=config_data,
+                        terms=terms
+                    )
+            
+            if not results:
+                return {
+                    "status": "Error",
+                    "error": f"No valid files found in directory: {source_path}"
+                }
+            
+            return {
+                "status": "Processed",
+                "results": results
+            }
 
-    elif source_path.is_dir():
-        logger.info(f"Processing directories: {source_path} .")
-        results = {}
+        else:
+            error_msg = f"Invalid source type: {source_path}"
+            logger.error(error_msg)
+            return {
+                "status": "Error",
+                "error": error_msg
+            }
 
-        valid_extensions = {".txt", ".pdf"}
-
-        src_files = {f.name: f for f in source_path.glob("*") if f.is_file() and f.suffix in valid_extensions}
-
-        # Compare matching files
-        for filename in src_files.keys():
-            src_file = src_files.get(filename)
-
-            if src_file:
-                logger.info(f"Processing {src_file} files from {source_path}")
-                results[filename] =  f"processing file from directory with config file {config_data}"
-
-        return results
-
-    else:
-        raise ValueError("Source must be a valid file, directory, or  string.")
+    except Exception as e:
+        error_msg = f"Error in process_input_extract_rationale: {str(e)}"
+        logger.error(error_msg)
+        return {
+            "status": "Error",
+            "error": error_msg
+        }
