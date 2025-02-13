@@ -14,6 +14,8 @@ EviSense is a Python library developed as a part of BrainKB project designed to 
 ```bash
 pip install evisense
 ```
+## Requirements
+- Since it uses GrobidArticleExtractor, you must have Grobid running either locally or provide the remote Grobid Server url.
 
 ## Usage
 
@@ -66,18 +68,26 @@ evisense-cli extract-evidence --config config.yml --source "This is a neuroscien
 
 ```yaml
 llm:
-  provider: "openrouter"  # Try OpenRouter first
-  default: "ollama"      # Use Ollama if OpenRouter auth fails
-  
+  default: "ollama"  # Specifies the default LLM provider
+  provider: "openrouter" #select provider to use, e.g., ollama or openrouter. the value all will make use of all the providers specified in config in current case ollama and openrouter
+
+  ollama:
+    base_url: "http://localhost:11434"
+    default_model: "deepseek-r1:14b"  # Default model for Ollama
+    models:
+      - "deepseek-r1:14b"
+      - "qwen2.5-coder:14b"
+
   openrouter:
-    api_key: "your-key"  # If this key is invalid...
+    api_key: "sk-or-v1"
     base_url: "https://openrouter.ai/api/v1"
+    default_model: "gpt-4"  # Default model for OpenRouter
     models:
       - "gpt-4"
-  
-  ollama:               # ...system will fall back to Ollama
-    base_url: "http://localhost:11434"
-    default_model: "deepseek-r1:14b"
+      - "gpt-4-turbo"
+
+  grobid_server_url: "http://localhost:8070" #optional, if not specified, uses the default one http://http://localhost:8070
+
 ```
 
 

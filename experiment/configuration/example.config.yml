@@ -16,3 +16,5 @@ llm:
     models:
       - "gpt-4"
       - "gpt-4-turbo"
+
+  grobid_server_url: "http://localhost:8070" #optional, if not specified, uses the default one http://http://localhost:8070

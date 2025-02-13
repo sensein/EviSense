@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "EviSense"
-version = "1.0.1"
+version = "1.0.2"
 description = "EviSense is a Python library developed as a part of BrainKB project designed to extract evidence and rationales for specific terms within documents, including scientific publications. It enables efficient retrieval of relevant information from various sources, supporting multiple LLM providers and concurrent processing."
 authors = [
     "tekrajchhetri <tekrajchhetri@gmail.com>",

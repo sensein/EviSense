@@ -326,23 +326,30 @@ def make_prompt(term: Union[str, List[str]], document: str) -> str:
     """
 
 
-def extract_pdf_content(file_path: str) -> dict:
+def extract_pdf_content(file_path: str, grobid_server: str = None) -> dict:
     """
-        Extracts content from a PDF file using GrobidArticleExtractor.
+    Extracts content from a PDF file using GrobidArticleExtractor.
 
-        This function processes the given PDF file and extracts it contents.
+    This function processes the given PDF file and extracts its contents.
 
-        Args:
-            file_path (str): The path to the PDF file.
+    Args:
+        file_path (str): The path to the PDF file.
+        grobid_server (str, optional): The URL of the Grobid server. If not provided,
+            uses the default URL (http://localhost:8070).
 
-        Returns:
-            dict: A dictionary containing:
-                - "metadata" (dict): Metadata information about the publications.
-                - "sections" (list): A list of extracted sections, where each section is a dictionary containing:
-                    - "heading" (str): The heading/title of the section.
-                    - "content" (str): The textual content of the section.
-        """
-    extractor = GrobidArticleExtractor()
+    Returns:
+        dict: A dictionary containing:
+            - "metadata" (dict): Metadata information about the publications.
+            - "sections" (list): A list of extracted sections, where each section is a dictionary containing:
+                - "heading" (str): The heading/title of the section.
+                - "content" (str): The textual content of the section.
+    """
+    if grobid_server is None:
+        #default localhost
+        extractor = GrobidArticleExtractor()
+    else:
+        extractor = GrobidArticleExtractor(grobid_url=grobid_server)
+
     xml_content = extractor.process_pdf(file_path)
     result = extractor.extract_content(xml_content)
 
@@ -422,7 +429,8 @@ async def process_file(file_path: Path, config_data: dict, terms: Union[str, Lis
             
             try:
                 # Extract PDF content
-                pdf_content = extract_pdf_content(str(file_path))
+                grobid_server_url = config_data.get("llm", {}).get("grobid_server_url")
+                pdf_content = extract_pdf_content(str(file_path), grobid_server_url)
                 if not pdf_content["sections"]:
                     raise ValueError("No content sections found in PDF")
                 
