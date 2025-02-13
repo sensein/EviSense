@@ -65,7 +65,6 @@ def extract_evidence(config, source, terms):
         except Exception as e:
             click.echo(f"Error parsing terms: {str(e)}", err=True)
             click.echo("Terms should be either a single term or multiple terms separated by commas", err=True)
-            click.echo("Example: --terms \"Astrocyte\" or --terms \"Astrocyte,Ependymal\"", err=True)
             raise click.Abort()
 
         # Run the async function using asyncio.run()
