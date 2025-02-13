@@ -221,9 +221,33 @@ def load_config(config: Union[str, Path, Dict]) -> dict:
     if isinstance(config, dict):
         return config  # Directly use the dictionary
 
-    config_path = Path(config) if isinstance(config, str) else config
+    # Try different path resolutions for config file
+    if isinstance(config, str):
+        paths_to_try = [
+            Path(config),                    # As provided
+            Path.cwd() / config,             # Relative to current directory
+            Path(config).absolute(),         # Absolute path
+            Path(config).resolve()           # Resolved path (handles .. and .)
+        ]
+        
+        logger.info(f"Trying config paths: {[str(p) for p in paths_to_try]}")
+        
+        # Find first existing path with valid extension
+        config_path = next(
+            (p for p in paths_to_try if p.exists() and p.suffix.lower() in {".yml", ".yaml"}),
+            paths_to_try[0]  # Default to first path if none exist
+        )
+    else:
+        config_path = Path(config)
+
     if not config_path.exists() or config_path.suffix.lower() not in {".yml", ".yaml"}:
-        raise ValueError(f"Invalid configuration: {config}. Expected a YAML file or a dictionary.")
+        error_msg = (
+            f"Invalid configuration: {config}\n"
+            f"Expected a YAML file (.yml or .yaml) or a dictionary.\n"
+            "Tried the following paths:\n"
+            + "\n".join(f"- {p}" for p in paths_to_try)
+        )
+        raise ValueError(error_msg)
 
     try:
         with open(config_path, "r", encoding="utf-8") as file:
