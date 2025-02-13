@@ -476,7 +476,7 @@ async def process_file(file_path: Path, config_data: dict, terms: Union[str, Lis
             "error": f"Processing error: {str(e)}"
         }
 
-def process_string_source(string_text: str, config_data: dict) -> dict:
+async def process_string_source(terms:str, string_text: str, config_data: dict) -> dict:
     """
     Processes a knowledge graph input from a string.
 
@@ -487,5 +487,27 @@ def process_string_source(string_text: str, config_data: dict) -> dict:
     Returns:
         dict: Extracted rationale or evidence.
     """
-    logger.info("Processing knowledge graph string input.")
-    return {"graph": string_text[:100], "status": "Processed", "config": config_data}
+
+    try:
+        # Extract PDF content
+
+        prompt = make_prompt(term=terms, document=string_text)
+        logger.info("Created prompt with formatted content")
+
+        # Call LLMs and get response
+        llm_response = await call_llms_in_parallel(prompt=prompt, config=config_data)
+        if not llm_response:
+            raise ValueError("No response received from LLMs")
+
+        return {
+            "status": "Processed",
+            "results": llm_response,
+        }
+
+    except Exception as e:
+        logger.error(f"Error processing PDF content: {str(e)}")
+        return {
+            "file": str(string_text),
+            "status": "Error",
+            "error": f"PDF processing error: {str(e)}"
+        }

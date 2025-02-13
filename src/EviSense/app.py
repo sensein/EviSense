@@ -71,10 +71,19 @@ async def process_input_extract_rationale(config: Union[str, Path, Dict], source
             # Log all paths being tried
             logger.info(f"Trying paths: {[str(p) for p in paths_to_try]}")
             
-            # Only treat as raw text if it doesn't look like a file path and no paths exist
-            if not ('/' in source or '\\' in source) and not any(p.exists() for p in paths_to_try):
-                logger.info(f"Processing raw text input. Terms: {terms}")
-                return process_string_source(source, config_data)
+            # Check if this is raw text input
+            is_raw_text = (
+                # If it's a very long string, treat as raw text
+                len(source) > 500 or
+                # Or if it contains newlines
+                '\n' in source or
+                # Or if it doesn't look like a path and no paths exist
+                (not ('/' in source or '\\' in source) and not any(p.exists() for p in paths_to_try))
+            )
+            
+            if is_raw_text:
+                logger.info(f"Processing raw text input (length: {len(source)})")
+                return await process_string_source(terms, source, config_data)
             
             # Use the first path that exists, or default to the first path
             source_path = next((p for p in paths_to_try if p.exists()), paths_to_try[0])
