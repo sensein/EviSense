@@ -58,20 +58,49 @@ async def process_input_extract_rationale(config: Union[str, Path, Dict], source
                 "error": f"Configuration error: {str(e)}"
             }
 
-        # Handle string source
-        if isinstance(source, str) and not Path(source).exists():
-            logger.info("Processing string source")
-            return process_string_source(source, config_data)
-
-        # Convert to Path and validate
-        source_path = Path(source) if isinstance(source, str) else source
-        if not source_path.exists():
-            error_msg = f"Source path does not exist: {source}"
-            logger.error(error_msg)
-            return {
-                "status": "Error",
-                "error": error_msg
-            }
+        # Handle raw text input vs file paths
+        if isinstance(source, str):
+            # Try different path resolutions
+            paths_to_try = [
+                Path(source),                    # As provided
+                Path.cwd() / source,             # Relative to current directory
+                Path(source).absolute(),         # Absolute path
+                Path(source).resolve()           # Resolved path (handles .. and .)
+            ]
+            
+            # Log all paths being tried
+            logger.info(f"Trying paths: {[str(p) for p in paths_to_try]}")
+            
+            # Only treat as raw text if it doesn't look like a file path and no paths exist
+            if not ('/' in source or '\\' in source) and not any(p.exists() for p in paths_to_try):
+                logger.info(f"Processing raw text input. Terms: {terms}")
+                return process_string_source(source, config_data)
+            
+            # Use the first path that exists, or default to the first path
+            source_path = next((p for p in paths_to_try if p.exists()), paths_to_try[0])
+            
+            if not source_path.exists():
+                error_msg = (
+                    f"Source path does not exist: {source}\n"
+                    f"Tried the following paths:\n"
+                    + "\n".join(f"- {p}" for p in paths_to_try)
+                )
+                logger.error(error_msg)
+                return {
+                    "status": "Error",
+                    "error": error_msg
+                }
+            
+            logger.info(f"Using path: {source_path}")
+        else:
+            source_path = Path(source)
+            if not source_path.exists():
+                error_msg = f"Source path does not exist: {source}"
+                logger.error(error_msg)
+                return {
+                    "status": "Error",
+                    "error": error_msg
+                }
 
         # Process single file
         if source_path.is_file():
