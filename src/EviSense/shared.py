@@ -50,13 +50,29 @@ async def call_llms_in_parallel(prompt: str, config: Dict[str, Any]) -> Dict[str
         if not llm_config:
             raise ValueError("No LLM configuration found in config")
 
-        # Get the default provider (if defined)
+        # Get the selected provider and default provider
+        selected_provider = llm_config.get("provider")
         default_provider = llm_config.get("default")
-        logger.info(f"Default provider: {default_provider}")
+        
+        # If no provider specified or None, use default
+        if selected_provider is None and default_provider:
+            selected_provider = default_provider
+            logger.info(f"No provider specified, using default: {default_provider}")
+        elif selected_provider:
+            logger.info(f"Using selected provider: {selected_provider}")
+        else:
+            logger.info("No provider specified and no default set, using all providers")
+            selected_provider = "all"
 
         for provider, provider_config in llm_config.items():
-            if provider == "default":
-                continue  # Skip the default provider key
+            # Skip configuration keys
+            if provider in ["provider", "default"]:
+                continue
+
+            # Skip providers not selected (unless "all" is specified)
+            if selected_provider != "all" and provider != selected_provider:
+                logger.info(f"Skipping provider {provider} as it's not selected")
+                continue
 
             try:
                 base_url = provider_config.get("base_url")
@@ -89,26 +105,30 @@ async def call_llms_in_parallel(prompt: str, config: Dict[str, Any]) -> Dict[str
                 logger.error(f"Error configuring provider {provider}: {str(e)}")
 
         # If no connectors were created and we have a default provider, try to use it
-        if not connectors and default_provider and default_provider in llm_config:
-            logger.info(f"No connectors created, falling back to default provider {default_provider}")
-            default_config = llm_config[default_provider]
-            try:
-                base_url = default_config.get("base_url")
-                api_key = default_config.get("api_key", None)
-                default_model = default_config.get("default_model")
+        # Only do this if we weren't already trying to use the default provider
+        if not connectors and default_provider and selected_provider != default_provider:
+            logger.info(f"No connectors created, trying default provider {default_provider}")
+            if default_provider in llm_config:
+                default_config = llm_config[default_provider]
+                try:
+                    base_url = default_config.get("base_url")
+                    api_key = default_config.get("api_key", None)
+                    default_model = default_config.get("default_model")
 
-                if default_model:
-                    connectors.append(
-                        LLMConnector(
-                            provider=default_provider,
-                            model=default_model,
-                            base_url=base_url,
-                            api_key=api_key
+                    if default_model:
+                        connectors.append(
+                            LLMConnector(
+                                provider=default_provider,
+                                model=default_model,
+                                base_url=base_url,
+                                api_key=api_key
+                            )
                         )
-                    )
-                    logger.info(f"Added default connector for {default_provider} with model {default_model}")
-            except Exception as e:
-                logger.error(f"Error creating default connector: {str(e)}")
+                        logger.info(f"Added default connector for {default_provider} with model {default_model}")
+                except Exception as e:
+                    logger.error(f"Error creating default connector: {str(e)}")
+            else:
+                logger.error(f"Default provider {default_provider} not found in configuration")
 
         if not connectors:
             raise ValueError("No valid LLM connectors could be created from configuration")
@@ -118,13 +138,62 @@ async def call_llms_in_parallel(prompt: str, config: Dict[str, Any]) -> Dict[str
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         response_dict = {}
+        all_failed = True
+        auth_failed = False
+        
+        # Process results and check for failures
         for connector, result in zip(connectors, results):
             key = f"{connector.provider}_{connector.model}"
             if isinstance(result, Exception):
-                logger.error(f"Error from {key}: {str(result)}")
-                response_dict[key] = str(result)
+                error_str = str(result)
+                logger.error(f"Error from {key}: {error_str}")
+                response_dict[key] = error_str
+                # Check for auth errors
+                if "401" in error_str or "auth" in error_str.lower() or "credentials" in error_str.lower():
+                    auth_failed = True
+                    logger.warning(f"Authentication error detected for {key}")
             else:
-                response_dict[key] = result
+                # Check if result is a string containing error
+                if isinstance(result, str) and ("401" in result or "auth" in result.lower() or "credentials" in result.lower()):
+                    auth_failed = True
+                    logger.warning(f"Authentication error detected in response from {key}")
+                    response_dict[key] = result
+                else:
+                    response_dict[key] = result
+                    all_failed = False
+
+        # If all providers failed or had auth errors and we have a default provider that wasn't already tried
+        if (all_failed or auth_failed) and default_provider and default_provider not in [c.provider for c in connectors]:
+            logger.info(f"All providers failed, trying default provider {default_provider}")
+            if default_provider in llm_config:
+                default_config = llm_config[default_provider]
+                try:
+                    base_url = default_config.get("base_url")
+                    api_key = default_config.get("api_key", None)
+                    default_model = default_config.get("default_model")
+
+                    if default_model:
+                        default_connector = LLMConnector(
+                            provider=default_provider,
+                            model=default_model,
+                            base_url=base_url,
+                            api_key=api_key
+                        )
+                        logger.info(f"Attempting fallback with {default_provider} model {default_model}")
+                        
+                        try:
+                            result = await default_connector.generate(prompt)
+                            key = f"{default_provider}_{default_model}"
+                            response_dict[key] = result
+                            logger.info(f"Fallback to {default_provider} successful")
+                        except Exception as e:
+                            logger.error(f"Fallback to {default_provider} failed: {str(e)}")
+                            response_dict[f"{default_provider}_{default_model}"] = str(e)
+                except Exception as e:
+                    logger.error(f"Error setting up default provider {default_provider}: {str(e)}")
+
+        if not response_dict or all(isinstance(v, str) and "Error" in v for v in response_dict.values()):
+            raise ValueError("All LLM providers failed, including fallback")
 
         return response_dict
 
