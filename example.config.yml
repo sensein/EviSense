@@ -1,16 +1,20 @@
 llm:
+  default: "ollama"  # Specifies the default LLM provider
+  provider: "openrouter" #select provider to use, e.g., ollama or openrouter. the value all will make use of all the providers specified in config in current case ollama and openrouter
+
   ollama:
     base_url: "http://localhost:11434"
+    default_model: "deepseek-r1:14b"  # Default model for Ollama
     models:
       - "deepseek-r1:14b"
       - "qwen2.5-coder:14b"
-  
+
   openrouter:
-    api_key: "your-openrouter-key"
+    api_key: "sk-or-v1-"
     base_url: "https://openrouter.ai/api/v1"
-    model: "gpt-4"
-  
-  openai:
-    api_key: "your-openai-key"
-    base_url: "https://api.openai.com/v1"
-    model: "gpt-4"
+    default_model: "gpt-4"  # Default model for OpenRouter
+    models:
+      - "gpt-4"
+      - "gpt-4-turbo"
+
+  grobid_server_url: "http://localhost:8070" #optional, if not specified, uses the default one http://http://localhost:8070
