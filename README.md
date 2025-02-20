@@ -69,7 +69,8 @@ evisense-cli extract-evidence --config config.yml --source "This is a neuroscien
 ```yaml
 llm:
   default: "ollama"  # Specifies the default LLM provider
-  provider: "openrouter" #select provider to use, e.g., ollama or openrouter. the value all will make use of all the providers specified in config in current case ollama and openrouter
+  provider: "openrouter" # Select provider to use, e.g., ollama or openrouter. 
+                         # All values of providers specified in config will be used, in current case ollama and openrouter
 
   ollama:
     base_url: "http://localhost:11434"
