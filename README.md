@@ -64,7 +64,7 @@ evisense-cli extract-evidence --config config.yml --source "This is a neuroscien
   - `models`: List of models to use
   - `default_model`: Default model if no specific models listed
 
-### Example Configuration
+### Example Full Configuration with Optional Parameters
 
 ```yaml
 llm:
@@ -89,7 +89,16 @@ llm:
   grobid_server_url: "http://localhost:8070" #optional, if not specified, uses the default one http://http://localhost:8070
 
 ```
+### Minimal Required Configuration Example with Ollama
 
+```yaml
+llm:
+  default: "ollama"  
+
+  ollama:
+    base_url: "http://localhost:11434"
+    default_model: "deepseek-r1:14b"  
+```
 
 ## Development
 
